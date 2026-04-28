@@ -11,14 +11,15 @@ async function sendTelegram(message) {
     const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
     try {
         await axios.post(url, { chat_id: CHAT_ID, text: message });
-        console.log("✅ Notificação enviada ao Telegram!");
+        console.log("✅ Alerta crítico enviado ao Telegram!");
     } catch (err) {
         console.error("❌ Erro ao enviar Telegram:", err.response?.data || err.message);
     }
 }
 
 async function checkHarryTickets() {
-    console.log(`\n--- Varredura Harry Styles: ${new Date().toLocaleString('pt-BR')} ---`);
+    console.log(`\n===========================================`);
+    console.log(`--- Varredura Harry Styles: ${new Date().toLocaleString('pt-BR')} ---`);
     
     const browser = await puppeteer.launch({ 
         headless: "new", 
@@ -49,7 +50,7 @@ async function checkHarryTickets() {
         });
 
         for (const dateObj of availableDatesInfo) {
-            console.log(`Verificando Data: ${dateObj.dataTexto}`);
+            console.log(`\n📅 Analisando Data: ${dateObj.dataTexto}`);
             await page.evaluate((id) => document.getElementById(id).click(), dateObj.id);
             await page.waitForSelector('#buyButton', { timeout: 15000 });
             await page.evaluate(() => document.getElementById('buyButton').click());
@@ -57,6 +58,7 @@ async function checkHarryTickets() {
 
             const sectors = ['Pit Circle', 'Pit Disco'];
             for (const s of sectors) {
+                console.log(`   📍 Inspecionando setor: ${s}...`);
                 const clicked = await page.evaluate((name) => {
                     const target = Array.from(document.querySelectorAll('.sectorOption')).find(opt => opt.innerText.toUpperCase().includes(name.toUpperCase()));
                     if (target) { target.click(); return true; }
@@ -72,8 +74,13 @@ async function checkHarryTickets() {
                     });
 
                     if (available.length > 0) {
+                        console.log(`   🚨 INGRESSOS ENCONTRADOS EM ${s}! Notificando...`);
                         await sendTelegram(`🚨 HARRY - ${s} DISPONÍVEL!\nData: ${dateObj.dataTexto}\nLink: ${URL_HARRY}`);
+                    } else {
+                         console.log(`   ❌ Nada disponível para público geral em ${s}.`);
                     }
+                } else {
+                    console.log(`   ⚠️ Setor ${s} indisponível para clique no mapa.`);
                 }
                 await page.evaluate(() => document.getElementById('clean_selection')?.click());
             }
@@ -81,10 +88,11 @@ async function checkHarryTickets() {
         }
 
     } catch (error) {
-        console.error('❌ Erro:', error.message);
+        console.error('❌ Erro durante a varredura:', error.message);
     } finally {
         await browser.close();
-        process.exit(0); // Essencial para o PM2 Cron
+        console.log("🏁 Processo encerrado de forma limpa.");
+        process.exit(0); 
     }
 }
 
