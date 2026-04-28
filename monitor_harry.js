@@ -55,7 +55,8 @@ async function checkHarryTickets() {
             await page.waitForSelector('#buyButton', { timeout: 15000 });
             await page.evaluate(() => document.getElementById('buyButton').click());
             
-            const sectors = ['Pit Circle', 'Pit Disco', 'Pit Square'];
+            // Removido Pit Square: Focando apenas no essencial
+            const sectors = ['Pit Circle', 'Pit Disco'];
             for (const s of sectors) {
                 console.log(`\n   🎯 ALVO: ${s}`);
                 await page.waitForSelector('.sectorOption', { timeout: 10000 }).catch(() => {});
