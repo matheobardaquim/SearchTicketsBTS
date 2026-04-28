@@ -1,7 +1,10 @@
 {
   "dependencies": {
+    "@sparticuz/chromium": "^123.0.1",
     "axios": "^1.15.2",
+    "puppeteer": "^24.42.0",
     "puppeteer-core": "^24.42.0",
-    "@sparticuz/chromium": "^123.0.1"
+    "puppeteer-extra": "^3.3.6",
+    "puppeteer-extra-plugin-stealth": "^2.11.2"
   }
 }
