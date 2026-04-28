@@ -1,52 +1,76 @@
-// api/check.js
-const puppeteer = require('puppeteer-core');
-const chrome = require('@sparticuz/chromium');
+const puppeteer = require('puppeteer');
 const axios = require('axios');
 
-export default async function handler(req, res) {
-  // Proteção básica: só permite que o Vercel Cron chame essa URL
-  const authHeader = req.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    return res.status(401).end('Não autorizado');
-  }
+// Puxa os dados das Secrets do GitHub Actions para segurança
+const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
+const CHAT_ID = process.env.CHAT_ID;
+const URL_BTS = 'https://www.ticketmaster.com.br/event/bts-world-tour-arirang';
 
-  let browser = null;
-
-  try {
-    browser = await puppeteer.launch({
-      args: chrome.args,
-      defaultViewport: chrome.defaultViewport,
-      executablePath: await chrome.executablePath(),
-      headless: chrome.headless,
-    });
-
-    const page = await browser.newPage();
-    await page.goto('https://www.ticketmaster.com.br/event/bts-world-tour-arirang', { waitUntil: 'networkidle2' });
-
-    const isAvailable = await page.evaluate(() => {
-      const items = document.querySelectorAll('.tmpe-ticket-item');
-      let found = false;
-      items.forEach(item => {
-        const dot = item.querySelector('.tmpe-status-dot');
-        const text = item.querySelector('.tmpe-link-details')?.innerText.toUpperCase();
-        if (dot && !dot.classList.contains('tmpe-dot-soldout') && text !== 'ESGOTADO') {
-          found = true;
-        }
-      });
-      return found;
-    });
-
-    if (isAvailable) {
-      await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_TOKEN}/sendMessage`, {
-        chat_id: process.env.CHAT_ID,
-        text: "🚨 INGRESSO DISPONÍVEL! Corre no site!"
-      });
+async function sendTelegram(message) {
+    const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
+    try {
+        await axios.post(url, { chat_id: CHAT_ID, text: message });
+        console.log("✅ Notificação enviada ao Telegram!");
+    } catch (err) {
+        console.error("❌ Erro ao enviar Telegram:", err.response?.data || err.message);
     }
-
-    res.status(200).json({ checked: true, available: isAvailable });
-  } catch (error) {
-    res.status(500).json({ error: error.message });
-  } finally {
-    if (browser) await browser.close();
-  }
 }
+
+async function checkTickets() {
+    console.log(`\n--- Iniciando verificação: ${new Date().toLocaleString('pt-BR')} ---`);
+    
+    // Configurações obrigatórias para rodar no GitHub Actions (Linux)
+    const browser = await puppeteer.launch({ 
+        headless: "new", 
+        args: ['--no-sandbox', '--disable-setuid-sandbox'] 
+    }); 
+    const page = await browser.newPage();
+
+    try {
+        console.log("Acessando o site da Ticketmaster...");
+        await page.goto(URL_BTS, { waitUntil: 'networkidle2', timeout: 60000 });
+
+        console.log("Analisando a disponibilidade...");
+        const result = await page.evaluate(() => {
+            const items = document.querySelectorAll('.tmpe-ticket-item');
+            let availableDates = [];
+
+            items.forEach(item => {
+                const dateTitle = item.querySelector('.tmpe-ticket-title')?.innerText.trim();
+                const dot = item.querySelector('.tmpe-status-dot');
+                const linkElement = item.querySelector('.tmpe-link-details');
+                const linkText = linkElement?.innerText.toUpperCase();
+                
+                // Lógica robusta: Se NÃO tem a classe soldout E o texto NÃO é ESGOTADO
+                const isSoldOut = dot && dot.classList.contains('tmpe-dot-soldout');
+                const isAvailable = !isSoldOut && linkText !== 'ESGOTADO';
+
+                if (isAvailable) {
+                    availableDates.push(dateTitle);
+                }
+            });
+
+            return {
+                anyAvailable: availableDates.length > 0,
+                dates: availableDates
+            };
+        });
+
+        // Mude para (true) apenas se quiser testar o Telegram no primeiro push
+        if (result.anyAvailable) {
+            console.log(`🚨 INGRESSO ENCONTRADO para: ${result.dates.join(', ')}`);
+            await sendTelegram(`🚨 CORRE! Ingressos detectados para o show no MorumBIS: ${result.dates.join(', ')}!\nLink: ${URL_BTS}`);
+        } else {
+            console.log("😔 Tudo continua esgotado.");
+        }
+
+    } catch (error) {
+        console.error('❌ Erro no processo:', error.message);
+    } finally {
+        await browser.close();
+        console.log("Navegador fechado.");
+    }
+}
+
+// Executa a função
+checkTickets();

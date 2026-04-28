@@ -1,0 +1,26 @@
+name: Monitor BTS Tickets
+on:
+  schedule:
+    - cron: '*/10 * * * *' # Roda a cada 10 minutos (mais seguro para evitar bloqueios)
+  workflow_dispatch: # Permite que você rode manualmente pelo botão no GitHub
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install puppeteer axios
+
+      - name: Run Monitor
+        env:
+          TELEGRAM_TOKEN: ***REMOVED***
+          CHAT_ID: 5801730158
+        run: node monitor.js
