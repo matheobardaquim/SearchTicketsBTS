@@ -1,8 +1,8 @@
 name: Monitor BTS Tickets
 on:
   schedule:
-    - cron: '*/10 * * * *' # Roda a cada 10 minutos
-  workflow_dispatch: # Permite rodar manualmente no painel do GitHub
+    - cron: '*/10 * * * *'
+  workflow_dispatch:
 
 jobs:
   check:
@@ -19,9 +19,11 @@ jobs:
       - name: Install dependencies
         run: npm install puppeteer axios
 
+      - name: Install Chrome
+        run: npx puppeteer browsers install chrome
+
       - name: Run Monitor
         env:
-          # Buscando valores das configurações protegidas do repositório
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
         run: node monitor.js
