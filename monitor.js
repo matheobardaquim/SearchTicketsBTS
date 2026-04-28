@@ -21,7 +21,7 @@ async function checkTickets() {
     
     // Configurações apontando direto para o Chrome nativo do GitHub Actions
     const browser = await puppeteer.launch({ 
-        executablePath: '/usr/bin/google-chrome', // <-- O truque de mestre aqui
+        executablePath: '/usr/bin/google-chrome',
         headless: "new", 
         args: ['--no-sandbox', '--disable-setuid-sandbox'] 
     }); 
@@ -57,8 +57,8 @@ async function checkTickets() {
             };
         });
 
-        // Mude para (true) apenas se quiser testar o Telegram no primeiro push
-        if (true) {
+        // LÓGICA DE PRODUÇÃO: Só avisa se realmente encontrar algo disponível
+        if (result.anyAvailable) {
             console.log(`🚨 INGRESSO ENCONTRADO para: ${result.dates.join(', ')}`);
             await sendTelegram(`🚨 CORRE! Ingressos detectados para o show no MorumBIS: ${result.dates.join(', ')}!\nLink: ${URL_BTS}`);
         } else {
