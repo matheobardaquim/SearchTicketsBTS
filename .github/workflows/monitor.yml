@@ -26,7 +26,7 @@ jobs:
         run: node monitor.js
 
       - name: Run Harry Styles Monitor
-        if: always() # Garante que o Harry rode mesmo que o BTS falhe
+        if: false # [STAND BY] Mude de volta para always() para reativar
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
