@@ -29,16 +29,17 @@ async function checkHarryTickets() {
         await sendTelegram("🛠️ TESTE: O monitor do Harry Styles começou a rodar com Stealth no GitHub Actions!");
     }
 
+    // Remova o executablePath: '/usr/bin/google-chrome'
     const browser = await puppeteer.launch({ 
-        executablePath: '/usr/bin/google-chrome',
         headless: "new", 
         args: [
             '--no-sandbox', 
             '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage', // Adicione isso! Ajuda muito em máquinas com 1GB de RAM
             '--window-size=1280,800'
         ] 
     });
-    
+        
     const page = await browser.newPage();
     
     // Configurações extras de evasão e idioma

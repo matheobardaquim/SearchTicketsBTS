@@ -20,11 +20,16 @@ async function checkTickets() {
     console.log(`\n--- Iniciando verificação: ${new Date().toLocaleString('pt-BR')} ---`);
     
     // Configurações apontando direto para o Chrome nativo do GitHub Actions
+    // Remova o executablePath: '/usr/bin/google-chrome'
     const browser = await puppeteer.launch({ 
-        executablePath: '/usr/bin/google-chrome',
         headless: "new", 
-        args: ['--no-sandbox', '--disable-setuid-sandbox'] 
-    }); 
+        args: [
+            '--no-sandbox', 
+            '--disable-setuid-sandbox',
+            '--disable-dev-shm-usage', // Adicione isso! Ajuda muito em máquinas com 1GB de RAM
+            '--window-size=1280,800'
+        ] 
+    });
     const page = await browser.newPage();
 
     try {
