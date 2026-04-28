@@ -1,13 +1,15 @@
-const puppeteer = require('puppeteer');
+// Substituímos o puppeteer padrão pelo puppeteer-extra
+const puppeteer = require('puppeteer-extra');
+// Adicionamos o plugin Stealth para burlar o WAF/Captcha
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+puppeteer.use(StealthPlugin());
+
 const axios = require('axios');
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 const CHAT_ID = process.env.CHAT_ID;
 const URL_HARRY = 'https://www.ticketmaster.com.br/event/venda-geral-harry-styles';
 
-// ==========================================
-// Mude para false após receber a mensagem de teste no celular
-// ==========================================
 const TESTAR_TELEGRAM = true; 
 
 async function sendTelegram(message) {
@@ -24,7 +26,7 @@ async function checkHarryTickets() {
     console.log(`\n--- Iniciando Varredura Harry Styles: ${new Date().toLocaleString('pt-BR')} ---`);
     
     if (TESTAR_TELEGRAM) {
-        await sendTelegram("🛠️ TESTE: O monitor do Harry Styles começou a rodar no GitHub Actions!");
+        await sendTelegram("🛠️ TESTE: O monitor do Harry Styles começou a rodar com Stealth no GitHub Actions!");
     }
 
     const browser = await puppeteer.launch({ 
@@ -33,18 +35,19 @@ async function checkHarryTickets() {
         args: [
             '--no-sandbox', 
             '--disable-setuid-sandbox',
-            '--disable-blink-features=AutomationControlled' // Tenta esconder que é um robô
+            '--window-size=1280,800'
         ] 
     });
-    const page = await browser.newPage();
-    await page.setViewport({ width: 1280, height: 800 });
     
-    // Simula um navegador real de usuário para evitar bloqueio da Ticketmaster
-    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+    const page = await browser.newPage();
+    
+    // Configurações extras de evasão e idioma
+    await page.setExtraHTTPHeaders({
+        'Accept-Language': 'pt-BR,pt;q=0.9,en-US;q=0.8,en;q=0.7'
+    });
 
     try {
         console.log("1. Acessando a página principal...");
-        // Mudamos para domcontentloaded para não ficar travado esperando rastreadores
         await page.goto(URL_HARRY, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
         console.log("Aguardando lista de datas renderizar no DOM...");
@@ -52,10 +55,10 @@ async function checkHarryTickets() {
         try {
             await page.waitForSelector('a.show', { timeout: 30000 });
         } catch (e) {
-            console.log("⚠️ A lista de datas não carregou. Verificando onde o robô parou...");
+            console.log("⚠️ A lista de datas não carregou.");
             const pageTitle = await page.title();
             console.log(`Título da página atual: "${pageTitle}"`);
-            throw new Error("Página principal não renderizou. Possível bloqueio de WAF/Captcha.");
+            throw new Error("Página principal não renderizou. O IP do GitHub Actions pode estar na blacklist do WAF.");
         }
 
         const availableDatesInfo = await page.evaluate(() => {
