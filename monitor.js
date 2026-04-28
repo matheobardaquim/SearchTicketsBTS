@@ -19,8 +19,9 @@ async function sendTelegram(message) {
 async function checkTickets() {
     console.log(`\n--- Iniciando verificação: ${new Date().toLocaleString('pt-BR')} ---`);
     
-    // Configurações obrigatórias para rodar no GitHub Actions (Linux)
+    // Configurações apontando direto para o Chrome nativo do GitHub Actions
     const browser = await puppeteer.launch({ 
+        executablePath: '/usr/bin/google-chrome', // <-- O truque de mestre aqui
         headless: "new", 
         args: ['--no-sandbox', '--disable-setuid-sandbox'] 
     }); 
