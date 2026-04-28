@@ -58,7 +58,7 @@ async function checkTickets() {
         });
 
         // Mude para (true) apenas se quiser testar o Telegram no primeiro push
-        if (result.anyAvailable) {
+        if (true) {
             console.log(`🚨 INGRESSO ENCONTRADO para: ${result.dates.join(', ')}`);
             await sendTelegram(`🚨 CORRE! Ingressos detectados para o show no MorumBIS: ${result.dates.join(', ')}!\nLink: ${URL_BTS}`);
         } else {
