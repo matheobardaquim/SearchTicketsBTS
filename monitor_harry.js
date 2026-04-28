@@ -66,9 +66,19 @@ async function checkHarryTickets() {
             const sectors = ['Pit Circle', 'Pit Disco'];
             for (const s of sectors) {
                 console.log(`   📍 Inspecionando setor: ${s}...`);
+                
+                // LÓGICA DE CLIQUE CORRIGIDA
                 const clicked = await page.evaluate((name) => {
-                    const target = Array.from(document.querySelectorAll('.sectorOption')).find(opt => opt.innerText.toUpperCase().includes(name.toUpperCase()));
-                    if (target) { target.click(); return true; }
+                    const options = Array.from(document.querySelectorAll('.sectorOption'));
+                    // Usa startsWith para evitar clicar nos pacotes VIP por engano
+                    const target = options.find(opt => opt.innerText.toUpperCase().startsWith(name.toUpperCase()));
+                    
+                    if (target) {
+                        // Rola a página até o botão antes de clicar
+                        target.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        target.click(); 
+                        return true; 
+                    }
                     return false;
                 }, s);
 
