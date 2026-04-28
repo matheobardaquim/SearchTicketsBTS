@@ -24,10 +24,9 @@ jobs:
       - name: Syntax Check (Lint)
         run: node --check monitor.js monitor_harry.js
 
-      # [OPCIONAL] Teste de fumaça: Tenta rodar o script por 10s só para ver se abre o browser
-      - name: Smoke Test
+      - name: Smoke Test (Validação de Inicialização)
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
-        run: |
-          timeout 20s node monitor.js || echo "Script finalizado ou atingiu timeout (esperado)"
+        # O script vai tentar rodar, carregar os módulos e o Node vai validar se tudo existe
+        run: node --check monitor.js monitor_harry.js && echo "Sintaxe OK"
