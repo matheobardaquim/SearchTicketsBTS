@@ -1,7 +1,7 @@
 const puppeteer = require('puppeteer');
 const axios = require('axios');
 
-// Puxa os dados das Secrets do GitHub Actions para segurança
+// Puxa as variáveis de ambiente injetadas pelo PM2 ou terminal
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 const CHAT_ID = process.env.CHAT_ID;
 const URL_BTS = 'https://www.ticketmaster.com.br/event/bts-world-tour-arirang';
@@ -17,66 +17,54 @@ async function sendTelegram(message) {
 }
 
 async function checkTickets() {
-    console.log(`\n--- Iniciando verificação: ${new Date().toLocaleString('pt-BR')} ---`);
+    console.log(`\n--- Iniciando verificação BTS: ${new Date().toLocaleString('pt-BR')} ---`);
     
-    // Configurações apontando direto para o Chrome nativo do GitHub Actions
-    // Remova o executablePath: '/usr/bin/google-chrome'
     const browser = await puppeteer.launch({ 
         headless: "new", 
         args: [
             '--no-sandbox', 
             '--disable-setuid-sandbox',
-            '--disable-dev-shm-usage', // Adicione isso! Ajuda muito em máquinas com 1GB de RAM
-            '--window-size=1280,800'
+            '--disable-dev-shm-usage',
+            '--disable-accelerated-2d-canvas',
+            '--disable-gpu',
+            '--no-first-run',
+            '--no-zygote',
+            '--single-process'
         ] 
     });
+
     const page = await browser.newPage();
 
     try {
-        console.log("Acessando o site da Ticketmaster...");
+        console.log("Acessando Ticketmaster...");
         await page.goto(URL_BTS, { waitUntil: 'networkidle2', timeout: 60000 });
 
-        console.log("Analisando a disponibilidade...");
         const result = await page.evaluate(() => {
             const items = document.querySelectorAll('.tmpe-ticket-item');
             let availableDates = [];
-
             items.forEach(item => {
                 const dateTitle = item.querySelector('.tmpe-ticket-title')?.innerText.trim();
                 const dot = item.querySelector('.tmpe-status-dot');
-                const linkElement = item.querySelector('.tmpe-link-details');
-                const linkText = linkElement?.innerText.toUpperCase();
-                
-                // Lógica robusta: Se NÃO tem a classe soldout E o texto NÃO é ESGOTADO
+                const linkText = item.querySelector('.tmpe-link-details')?.innerText.toUpperCase();
                 const isSoldOut = dot && dot.classList.contains('tmpe-dot-soldout');
-                const isAvailable = !isSoldOut && linkText !== 'ESGOTADO';
-
-                if (isAvailable) {
-                    availableDates.push(dateTitle);
-                }
+                if (!isSoldOut && linkText !== 'ESGOTADO') availableDates.push(dateTitle);
             });
-
-            return {
-                anyAvailable: availableDates.length > 0,
-                dates: availableDates
-            };
+            return { anyAvailable: availableDates.length > 0, dates: availableDates };
         });
 
-        // LÓGICA DE PRODUÇÃO: Só avisa se realmente encontrar algo disponível
         if (result.anyAvailable) {
-            console.log(`🚨 INGRESSO ENCONTRADO para: ${result.dates.join(', ')}`);
-            await sendTelegram(`🚨 CORRE! Ingressos detectados para o show no MorumBIS: ${result.dates.join(', ')}!\nLink: ${URL_BTS}`);
+            await sendTelegram(`🚨 BTS DISPONÍVEL: ${result.dates.join(', ')}!\nLink: ${URL_BTS}`);
         } else {
             console.log("😔 Tudo continua esgotado.");
         }
 
     } catch (error) {
-        console.error('❌ Erro no processo:', error.message);
+        console.error('❌ Erro:', error.message);
     } finally {
         await browser.close();
-        console.log("Navegador fechado.");
+        console.log("Processo encerrado.");
+        process.exit(0); // Essencial para o PM2 Cron
     }
 }
 
-// Executa a função
 checkTickets();

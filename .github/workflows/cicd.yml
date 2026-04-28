@@ -1,0 +1,32 @@
+name: CI - Validação de Código
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Syntax Check (Lint)
+        run: node --check monitor.js monitor_harry.js
+
+      # [OPCIONAL] Teste de fumaça: Tenta rodar o script por 10s só para ver se abre o browser
+      - name: Smoke Test
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: |
+          timeout 20s node monitor.js || echo "Script finalizado ou atingiu timeout (esperado)"
