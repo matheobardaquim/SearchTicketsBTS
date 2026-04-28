@@ -67,14 +67,20 @@ async function checkHarryTickets() {
             for (const s of sectors) {
                 console.log(`   📍 Inspecionando setor: ${s}...`);
                 
-                // LÓGICA DE CLIQUE CORRIGIDA
+                // LÓGICA DE CLIQUE CORRIGIDA (Corte no \n)
                 const clicked = await page.evaluate((name) => {
                     const options = Array.from(document.querySelectorAll('.sectorOption'));
-                    // Usa startsWith para evitar clicar nos pacotes VIP por engano
-                    const target = options.find(opt => opt.innerText.toUpperCase().startsWith(name.toUpperCase()));
+                    
+                    const target = options.find(opt => {
+                        // Pega o texto bruto e quebra no \n
+                        const linhas = opt.innerText.split('\n');
+                        // Pega só a primeira linha, tira os espaços em branco das pontas e compara
+                        const nomeReal = linhas[0].trim().toUpperCase();
+                        
+                        return nomeReal === name.toUpperCase();
+                    });
                     
                     if (target) {
-                        // Rola a página até o botão antes de clicar
                         target.scrollIntoView({ behavior: 'smooth', block: 'center' });
                         target.click(); 
                         return true; 
