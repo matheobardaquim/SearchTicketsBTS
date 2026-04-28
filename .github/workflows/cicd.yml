@@ -18,7 +18,8 @@ jobs:
           node-version: '20'
 
       - name: Install dependencies
-        run: npm install
+        # Forçamos a instalação manual para garantir que os módulos existam para o teste
+        run: npm install puppeteer puppeteer-extra puppeteer-extra-plugin-stealth axios
 
       - name: Syntax Check (Lint)
         run: node --check monitor.js monitor_harry.js
