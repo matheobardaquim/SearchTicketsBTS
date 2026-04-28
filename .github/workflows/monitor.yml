@@ -1,7 +1,7 @@
-name: Monitor BTS Tickets
+name: Monitores de Ingressos
 on:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '*/10 * * * *' # Roda a cada 10 minutos
   workflow_dispatch:
 
 jobs:
@@ -19,8 +19,15 @@ jobs:
       - name: Install dependencies
         run: npm install puppeteer axios
 
-      - name: Run Monitor
+      - name: Run BTS Monitor
         env:
           TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
         run: node monitor.js
+
+      - name: Run Harry Styles Monitor
+        if: always() # Garante que o Harry rode mesmo que o BTS falhe
+        env:
+          TELEGRAM_TOKEN: ${{ secrets.TELEGRAM_TOKEN }}
+          CHAT_ID: ${{ secrets.CHAT_ID }}
+        run: node monitor_harry.js
