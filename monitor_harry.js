@@ -5,6 +5,11 @@ const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
 const CHAT_ID = process.env.CHAT_ID;
 const URL_HARRY = 'https://www.ticketmaster.com.br/event/venda-geral-harry-styles';
 
+// ==========================================
+// Mude para false após receber a mensagem de teste no celular
+// ==========================================
+const TESTAR_TELEGRAM = true; 
+
 async function sendTelegram(message) {
     const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
     try {
@@ -18,20 +23,40 @@ async function sendTelegram(message) {
 async function checkHarryTickets() {
     console.log(`\n--- Iniciando Varredura Harry Styles: ${new Date().toLocaleString('pt-BR')} ---`);
     
+    if (TESTAR_TELEGRAM) {
+        await sendTelegram("🛠️ TESTE: O monitor do Harry Styles começou a rodar no GitHub Actions!");
+    }
+
     const browser = await puppeteer.launch({ 
-        executablePath: '/usr/bin/google-chrome', // Essencial para o Linux do GitHub Actions
-        headless: "new",                          // Volta a ficar oculto
-        args: ['--no-sandbox', '--disable-setuid-sandbox'] 
+        executablePath: '/usr/bin/google-chrome',
+        headless: "new", 
+        args: [
+            '--no-sandbox', 
+            '--disable-setuid-sandbox',
+            '--disable-blink-features=AutomationControlled' // Tenta esconder que é um robô
+        ] 
     });
     const page = await browser.newPage();
     await page.setViewport({ width: 1280, height: 800 });
+    
+    // Simula um navegador real de usuário para evitar bloqueio da Ticketmaster
+    await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
 
     try {
         console.log("1. Acessando a página principal...");
-        await page.goto(URL_HARRY, { waitUntil: 'networkidle2', timeout: 60000 });
+        // Mudamos para domcontentloaded para não ficar travado esperando rastreadores
+        await page.goto(URL_HARRY, { waitUntil: 'domcontentloaded', timeout: 60000 });
 
         console.log("Aguardando lista de datas renderizar no DOM...");
-        await page.waitForSelector('a.show', { timeout: 30000 });
+        
+        try {
+            await page.waitForSelector('a.show', { timeout: 30000 });
+        } catch (e) {
+            console.log("⚠️ A lista de datas não carregou. Verificando onde o robô parou...");
+            const pageTitle = await page.title();
+            console.log(`Título da página atual: "${pageTitle}"`);
+            throw new Error("Página principal não renderizou. Possível bloqueio de WAF/Captcha.");
+        }
 
         const availableDatesInfo = await page.evaluate(() => {
             const links = Array.from(document.querySelectorAll('a.show'));
@@ -57,7 +82,6 @@ async function checkHarryTickets() {
             
             const seletorData = `a[id="${dateObj.id}"]`;
             await page.waitForSelector(seletorData);
-            
             await page.evaluate((id) => { document.getElementById(id).click(); }, dateObj.id);
             
             await page.waitForSelector('#buyButton', { timeout: 15000 });
@@ -66,7 +90,6 @@ async function checkHarryTickets() {
             console.log("Aguardando mapa do estádio...");
             await page.waitForSelector('.sectorOption', { timeout: 30000 });
 
-            // REMOVIDO: Pit Square. Focando apenas em Circle e Disco
             const sectorsToChoices = ['Pit Circle', 'Pit Disco'];
 
             for (const sectorName of sectorsToChoices) {
@@ -107,12 +130,8 @@ async function checkHarryTickets() {
                     
                     ticketsData.forEach(t => {
                         console.log(`   - ${t.name}: ${t.isSoldOut ? '❌ Esgotado' : '✅ DISPONÍVEL'}`);
-                        
-                        // FILTRO DE IGNORADOS: Barra "Idoso" e "PCD"
                         const nomeUpper = t.name.toUpperCase();
                         const isIgnored = nomeUpper.includes('IDOSO') || nomeUpper.includes('PCD');
-                        
-                        // Só adiciona na lista do Telegram se NÃO estiver esgotado E NÃO for ignorado
                         if (!t.isSoldOut && !isIgnored) {
                             available.push(t.name);
                         }
@@ -123,7 +142,6 @@ async function checkHarryTickets() {
                         await sendTelegram(msg);
                         console.log(`   🔥 ALERTA ENVIADO AO TELEGRAM!`);
                     } else {
-                        // Isso vai cobrir o caso em que achou PCD/Idoso, mas não Inteira/Meia padrão
                         const temDisponivel = ticketsData.some(t => !t.isSoldOut);
                         if (temDisponivel) {
                             console.log(`   ⛔ Ingressos disponíveis ignorados (Apenas PCD/Idoso).`);
@@ -142,7 +160,7 @@ async function checkHarryTickets() {
             }
 
             console.log("\nRecarregando home para a próxima data...");
-            await page.goto(URL_HARRY, { waitUntil: 'networkidle2' });
+            await page.goto(URL_HARRY, { waitUntil: 'domcontentloaded' });
             await page.waitForSelector('a.show', { timeout: 20000 });
         }
 
