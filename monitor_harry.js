@@ -56,6 +56,13 @@ async function checkHarryTickets() {
             await page.evaluate(() => document.getElementById('buyButton').click());
             await page.waitForSelector('.sectorOption', { timeout: 30000 });
 
+            // DEBUG: Lê todos os setores que o mapa renderizou no DOM
+            const setoresNaTela = await page.evaluate(() => {
+                return Array.from(document.querySelectorAll('.sectorOption'))
+                    .map(opt => opt.innerText.trim().replace(/\n/g, ' '));
+            });
+            console.log(`   🗺️ Setores renderizados no DOM: ${setoresNaTela.join(' | ')}`);
+
             const sectors = ['Pit Circle', 'Pit Disco'];
             for (const s of sectors) {
                 console.log(`   📍 Inspecionando setor: ${s}...`);
@@ -82,7 +89,10 @@ async function checkHarryTickets() {
                 } else {
                     console.log(`   ⚠️ Setor ${s} indisponível para clique no mapa.`);
                 }
+                
+                // Limpa a seleção e aguarda o DOM reagir antes do próximo loop
                 await page.evaluate(() => document.getElementById('clean_selection')?.click());
+                await new Promise(resolve => setTimeout(resolve, 1500)); 
             }
             await page.goto(URL_HARRY, { waitUntil: 'domcontentloaded' });
         }
