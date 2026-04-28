@@ -39,7 +39,7 @@ export default async function handler(req, res) {
       return found;
     });
 
-    if (result) {
+    if (true) {
       await axios.post(`https://api.telegram.org/bot${process.env.TELEGRAM_TOKEN}/sendMessage`, {
         chat_id: process.env.CHAT_ID,
         text: "🚨 BTS NO MORUMBIS! Ingressos detectados! Corre: https://www.ticketmaster.com.br/event/bts-world-tour-arirang"
