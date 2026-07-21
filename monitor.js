@@ -1,4 +1,6 @@
-const puppeteer = require('puppeteer');
+const puppeteer = require('puppeteer-extra');
+const StealthPlugin = require('puppeteer-extra-plugin-stealth');
+puppeteer.use(StealthPlugin());
 const axios = require('axios');
 
 const TELEGRAM_TOKEN = process.env.TELEGRAM_TOKEN;
@@ -6,10 +8,14 @@ const CHAT_ID = process.env.CHAT_ID;
 const URL_BTS = 'https://www.ticketmaster.com.br/event/bts-world-tour-arirang';
 
 async function sendTelegram(message) {
+    if (!TELEGRAM_TOKEN || !CHAT_ID) {
+        console.log("⚠️ TELEGRAM_TOKEN ou CHAT_ID não configurados!");
+        return;
+    }
     const url = `https://api.telegram.org/bot${TELEGRAM_TOKEN}/sendMessage`;
     try {
-        await axios.post(url, { chat_id: CHAT_ID, text: message });
-        console.log("✅ Alerta crítico enviado ao Telegram!");
+        await axios.post(url, { chat_id: CHAT_ID, text: message, parse_mode: 'HTML' });
+        console.log("✅ Alerta enviado ao Telegram!");
     } catch (err) {
         console.error("❌ Erro ao enviar Telegram:", err.response?.data || err.message);
     }
@@ -34,6 +40,7 @@ async function checkTickets() {
     });
 
     const page = await browser.newPage();
+    await page.setExtraHTTPHeaders({ 'Accept-Language': 'pt-BR,pt;q=0.9' });
 
     try {
         console.log("📍 Acessando portal Ticketmaster...");
@@ -54,7 +61,8 @@ async function checkTickets() {
 
         if (result.anyAvailable) {
             console.log(`🚨 INGRESSOS ENCONTRADOS! Notificando...`);
-            await sendTelegram(`🚨 BTS DISPONÍVEL: ${result.dates.join(', ')}!\nLink: ${URL_BTS}`);
+            const msg = `🚨 <b>BTS DISPONÍVEL!</b>\n\n📅 <b>Datas:</b> ${result.dates.join(', ')}\n\n🔗 <a href="${URL_BTS}">Garanta na Ticketmaster</a>`;
+            await sendTelegram(msg);
         } else {
             console.log("❌ Tudo continua esgotado para o BTS.");
         }
@@ -63,9 +71,15 @@ async function checkTickets() {
         console.error('❌ Erro durante a varredura:', error.message);
     } finally {
         await browser.close();
-        console.log("🏁 Processo encerrado de forma limpa.");
-        process.exit(0); 
+        console.log("🏁 Varredura encerrada.");
     }
 }
 
-checkTickets();
+// Loop contínuo a cada 5 minutos (300.000 ms)
+async function startMonitor() {
+    await checkTickets();
+    console.log("⏱️ Aguardando 5 minutos para a próxima varredura...");
+    setTimeout(startMonitor, 300000);
+}
+
+startMonitor();
